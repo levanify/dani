@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { TELEGRAM_ACK_PROMPT, TELEGRAM_SYSTEM_PROMPT } from "./prompts";
+import { NodeEnv } from "../config/env";
 
 export type DaniAssistant = {
   quickAck(userMessage: string): Promise<string>;
@@ -36,6 +37,10 @@ export function createDaniAssistant(
         instructions: TELEGRAM_SYSTEM_PROMPT,
         input: userMessage,
       });
+      
+      if (process.env.NODE_ENV === NodeEnv.Development) {
+        console.log(JSON.stringify(response, null, 2));
+      }
 
       return response.output_text;
     },
