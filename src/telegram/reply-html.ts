@@ -10,6 +10,14 @@ const CHUNK_SPLIT_PATTERNS = [
   /.*?(?:\s+|$)/gs,
 ] as const;
 const TELEGRAM_ALLOWED_TAGS = ["b", "i", "u", "s", "a", "code", "pre"];
+const MARKDOWN_LINK_PATTERN = /\[([^\]\n]+)\]\(([^)\s]+)\)/g;
+
+function markdownLinksToAnchors(input: string): string {
+  return input.replace(
+    MARKDOWN_LINK_PATTERN,
+    (_match, text: string, href: string) => `<a href="${href.trim()}">${text}</a>`,
+  );
+}
 
 function splitChunkByPattern(text: string, pattern: RegExp): string[] {
   const matches = text.match(pattern) ?? [];
@@ -66,8 +74,8 @@ function splitForTelegramHtml(text: string): string[] {
 }
 
 export function sanitizeTelegramHtml(input: string): string {
-  // Telegram HTML does not support <hr>/<br>; normalize first.
-  const normalized = input
+  // Convert markdown links first, then normalize unsupported HTML tags.
+  const normalized = markdownLinksToAnchors(input)
     .replace(/<\s*hr\s*\/?\s*>/gi, "\n\n")
     .replace(/<\s*br\s*\/?\s*>/gi, "\n");
 

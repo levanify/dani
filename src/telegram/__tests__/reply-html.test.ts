@@ -31,4 +31,17 @@ describe("sanitizeTelegramHtml", () => {
     expect(safe).toContain('<a href="https://example.com">ok</a>');
     expect(unsafe).toBe("bad");
   });
+
+  it("converts markdown links to html anchors", () => {
+    const result = sanitizeTelegramHtml("Visit [OpenAI](https://openai.com) now.");
+
+    expect(result).toContain('Visit <a href="https://openai.com">OpenAI</a> now.');
+  });
+
+  it("converts markdown links but strips unsafe protocols", () => {
+    const result = sanitizeTelegramHtml("Run [this](javascript:alert(1))");
+
+    expect(result).toContain("Run this");
+    expect(result).not.toContain("<a");
+  });
 });
