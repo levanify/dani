@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { healthHandler, notFoundHandler, rootHandler } from "./app";
+import { healthHandler, notFoundHandler, rootHandler } from "../app";
 
 type MockResponse = {
   status: ReturnType<typeof vi.fn>;

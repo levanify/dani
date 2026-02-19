@@ -2,6 +2,7 @@ import { Telegraf } from "telegraf";
 
 import { NodeEnv } from "../config/env";
 import type { DaniAssistant } from "../services/dani-assistant";
+import { replyHtmlChunked } from "./reply-html";
 
 type CreateBotOptions = {
   assistant: DaniAssistant;
@@ -19,20 +20,13 @@ function parseAllowedUsers(allowedUsersRaw: string): Set<string> {
   );
 }
 
-function isAllowedTelegramUser(allowedUsers: Set<string>, username: string | undefined): boolean {
-  if (!username) {
-    return false;
-  }
-
-  return allowedUsers.has(username.toLowerCase());
-}
-
 export function createBot(options: CreateBotOptions): Telegraf {
   const allowedUsers = parseAllowedUsers(options.allowedUsersRaw);
   const bot = new Telegraf(options.token);
 
   bot.on("text", async (ctx) => {
-    if (!isAllowedTelegramUser(allowedUsers, ctx.from?.username)) {
+    const username = ctx.from?.username?.toLowerCase();
+    if (!username || !allowedUsers.has(username)) {
       await ctx.reply("You don't have access to this bot.");
       return;
     }
@@ -42,10 +36,10 @@ export function createBot(options: CreateBotOptions): Telegraf {
     }
 
     const ack = await options.assistant.quickAck(ctx.message.text);
-    await ctx.reply(ack, { parse_mode: "HTML" });
+    await replyHtmlChunked(ctx, ack);
 
     const reply = await options.assistant.chat(ctx.message.text);
-    await ctx.reply(reply, { parse_mode: "HTML" });
+    await replyHtmlChunked(ctx, reply);
   });
 
   return bot;

@@ -21,8 +21,14 @@ export function notFoundHandler(_req: Request, res: Response): void {
   res.status(404).json({ error: "Not Found" });
 }
 
-export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
+export function errorHandler(err: Error, _req: Request, res: Response, next: NextFunction): void {
   console.error(err);
+
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
   res.status(500).json({ error: "Internal Server Error" });
 }
 

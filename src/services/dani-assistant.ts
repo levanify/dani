@@ -6,34 +6,6 @@ export type DaniAssistant = {
   chat(userMessage: string): Promise<string>;
 };
 
-type OpenAIResponseText = {
-  output_text?: string;
-  output?: Array<{
-    type: string;
-    content?: Array<{ type: string; text?: string }>;
-  }>;
-};
-
-function getOutputText(response: OpenAIResponseText): string {
-  if (response.output_text) {
-    return response.output_text;
-  }
-
-  for (const item of response.output ?? []) {
-    if (item.type !== "message") {
-      continue;
-    }
-
-    for (const content of item.content ?? []) {
-      if (content.type === "output_text" && content.text) {
-        return content.text;
-      }
-    }
-  }
-
-  return "";
-}
-
 function createClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -54,8 +26,9 @@ export function createDaniAssistant(
         input: userMessage,
       });
 
-      return getOutputText(response);
+      return response.output_text;
     },
+
     async chat(userMessage: string): Promise<string> {
       const response = await client.responses.create({
         model: "gpt-5.2-chat-latest",
@@ -64,7 +37,7 @@ export function createDaniAssistant(
         input: userMessage,
       });
 
-      return getOutputText(response);
+      return response.output_text;
     },
   };
 }

@@ -2,27 +2,20 @@ import { createApp, errorHandler, healthHandler, notFoundHandler, rootHandler } 
 import { createDaniAssistant } from "./services/dani-assistant";
 import { createBot } from "./telegram/bot";
 
-function createRuntimeDependencies() {
+const app = createApp();
+
+if (require.main === module) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     throw new Error("Missing TELEGRAM_BOT_TOKEN environment variable.");
   }
 
-  const assistant = createDaniAssistant();
   const bot = createBot({
-    assistant,
+    assistant: createDaniAssistant(),
     token,
     allowedUsersRaw: process.env.ALLOWED_USERS ?? "",
     nodeEnv: process.env.NODE_ENV,
   });
-
-  return { bot };
-}
-
-const app = createApp();
-
-if (require.main === module) {
-  const { bot } = createRuntimeDependencies();
   const runtimeApp = createApp(bot);
   const port = Number(process.env.PORT ?? "3000");
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
