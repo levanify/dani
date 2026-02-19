@@ -1,4 +1,4 @@
-.PHONY: dev init build
+.PHONY: dev init build test
 
 dev:
 	pnpm dev:watch
@@ -8,3 +8,6 @@ init:
 
 build:
 	pnpm build
+
+test:
+	pnpm test

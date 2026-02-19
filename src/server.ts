@@ -1,50 +1,37 @@
-import express, { type NextFunction, type Request, type Response } from "express";
-import fs from "node:fs";
-import path from "node:path";
+import { createApp, errorHandler, healthHandler, notFoundHandler, rootHandler } from "./http/app";
+import { createDaniAssistant } from "./services/dani-assistant";
+import { createBot } from "./telegram/bot";
 
-import { bot } from "./bot";
+function createRuntimeDependencies() {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    throw new Error("Missing TELEGRAM_BOT_TOKEN environment variable.");
+  }
 
-const app = express();
+  const assistant = createDaniAssistant();
+  const bot = createBot({
+    assistant,
+    token,
+    allowedUsersRaw: process.env.ALLOWED_USERS ?? "",
+    nodeEnv: process.env.NODE_ENV,
+  });
 
-app.use(express.json());
-app.use(bot.webhookCallback("/webhook/telegram"));
-
-function getPackageVersion(): string {
-  const packageJsonPath = path.resolve(__dirname, "..", "package.json");
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as { version?: string };
-  return packageJson.version ?? "unknown";
+  return { bot };
 }
 
-function healthHandler(_req: Request, res: Response): void {
-  res.status(200).json({ status: "ok" });
-}
-
-function rootHandler(_req: Request, res: Response): void {
-  res.status(200).json({ service: "dani-api", version: getPackageVersion() });
-}
-
-function notFoundHandler(_req: Request, res: Response): void {
-  res.status(404).json({ error: "Not Found" });
-}
-
-function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
-  console.error(err);
-  res.status(500).json({ error: "Internal Server Error" });
-}
-
-app.get("/health", healthHandler);
-app.get("/", rootHandler);
-app.use(notFoundHandler);
-app.use(errorHandler);
+const app = createApp();
 
 if (require.main === module) {
+  const { bot } = createRuntimeDependencies();
+  const runtimeApp = createApp(bot);
   const port = Number(process.env.PORT ?? "3000");
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
   if (webhookUrl) {
     console.log(`Setting webhook to ${webhookUrl}/webhook/telegram`);
     bot.telegram.setWebhook(`${webhookUrl}/webhook/telegram`);
   }
-  const server = app.listen(port, () => {
+
+  const server = runtimeApp.listen(port, () => {
     console.log(`dani-api listening on port ${port}`);
   });
 
