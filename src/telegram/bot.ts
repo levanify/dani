@@ -1,5 +1,6 @@
 import { Telegraf } from "telegraf";
 
+import prisma from "../config/db";
 import { NodeEnv } from "../config/env";
 import type { DaniAssistant } from "../services/dani-assistant";
 import { replyHtmlChunked } from "./reply-html";
@@ -38,8 +39,17 @@ export function createBot(options: CreateBotOptions): Telegraf {
     const ack = await options.assistant.quickAck(ctx.message.text);
     await replyHtmlChunked(ctx, ack);
 
-    const reply = await options.assistant.chat(ctx.message.text);
+    const { text: reply, responseId } = await options.assistant.chat(
+      ctx.message.text,
+      username,
+    );
     await replyHtmlChunked(ctx, reply);
+
+    await prisma.user.upsert({
+      where: { telegramHandle: username },
+      update: { lastOpenaiResponseId: responseId },
+      create: { telegramHandle: username, lastOpenaiResponseId: responseId },
+    });
   });
 
   return bot;

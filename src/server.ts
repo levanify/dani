@@ -1,10 +1,18 @@
 import { createApp, errorHandler, healthHandler, notFoundHandler, rootHandler } from "./http/app";
+import prisma from "./config/db";
 import { createDaniAssistant } from "./services/dani-assistant";
 import { createBot } from "./telegram/bot";
 
 const app = createApp();
 
 if (require.main === module) {
+  prisma.$connect().then(() => {
+    console.log("Database connected successfully.");
+  }).catch((error) => {
+    console.error("Failed to connect to database:", error);
+    process.exit(1);
+  });
+
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     throw new Error("Missing TELEGRAM_BOT_TOKEN environment variable.");
@@ -51,6 +59,7 @@ if (require.main === module) {
 
     server.close((error) => {
       clearTimeout(forceExitTimer);
+      prisma.$disconnect();
       if (error) {
         console.error("Error while shutting down server:", error);
         process.exit(1);

@@ -1,10 +1,17 @@
 import OpenAI from "openai";
-import { TELEGRAM_ACK_PROMPT, TELEGRAM_SYSTEM_PROMPT } from "./prompts";
+
+import prisma from "../config/db";
 import { NodeEnv } from "../config/env";
+import { TELEGRAM_ACK_PROMPT, TELEGRAM_SYSTEM_PROMPT } from "./prompts";
+
+export type ChatResponse = {
+  text: string;
+  responseId: string;
+};
 
 export type DaniAssistant = {
   quickAck(userMessage: string): Promise<string>;
-  chat(userMessage: string): Promise<string>;
+  chat(userMessage: string, telegramHandle: string): Promise<ChatResponse>;
 };
 
 function createClient(): OpenAI {
@@ -30,19 +37,35 @@ export function createDaniAssistant(
       return response.output_text;
     },
 
-    async chat(userMessage: string): Promise<string> {
+    async chat(
+      userMessage: string,
+      telegramHandle: string,
+    ): Promise<ChatResponse> {
+      const user = await prisma.user.findUnique({
+        where: { telegramHandle },
+      });
+
       const response = await client.responses.create({
         model: "gpt-5.2-chat-latest",
         tools: [{ type: "web_search" }],
         instructions: TELEGRAM_SYSTEM_PROMPT,
         input: userMessage,
+        ...(user?.lastOpenaiResponseId && {
+          previous_response_id: user.lastOpenaiResponseId,
+        }),
+        context_management: [
+          {
+            type: "compaction",
+            compact_threshold: 120000,
+          },
+        ],
       });
-      
+
       if (process.env.NODE_ENV === NodeEnv.Development) {
         console.log(JSON.stringify(response, null, 2));
       }
 
-      return response.output_text;
+      return { text: response.output_text, responseId: response.id };
     },
   };
 }

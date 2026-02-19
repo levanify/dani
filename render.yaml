@@ -1,16 +1,42 @@
-services:
-  - type: web
-    name: dani-api
-    runtime: node
-    plan: free
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm start
-    envVars:
+# Exported from Render on 2026-02-19T14:13:59Z
+version: "1"
+projects:
+- name: dani
+  environments:
+  - name: Production
+    services:
+    - type: web
+      name: dani-node-service
+      runtime: node
+      repo: https://github.com/levanify/dani
+      plan: starter
+      envVars:
       - key: NODE_ENV
-        value: production
+        sync: false
+      - key: ALLOWED_USERS
+        sync: false
+      - key: TELEGRAM_WEBHOOK_URL
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: TELEGRAM_WEBHOOK_URL
-        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dani-db
+          property: connectionString
+      region: singapore
+      buildCommand: pnpm install --frozen-lockfile && pnpm build
+      preDeployCommand: npx prisma migrate deploy
+      startCommand: node dist/server.js
+      autoDeployTrigger: commit
+    databases:
+    - name: dani-db
+      databaseName: dani_db_k7zm
+      user: dani_db_k7zm_user
+      plan: free
+      region: singapore
+      ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+      postgresMajorVersion: "18"
