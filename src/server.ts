@@ -2,7 +2,12 @@ import express, { type NextFunction, type Request, type Response } from "express
 import fs from "node:fs";
 import path from "node:path";
 
+import { bot } from "./bot";
+
 const app = express();
+
+app.use(express.json());
+app.use(bot.webhookCallback("/webhook/telegram"));
 
 function getPackageVersion(): string {
   const packageJsonPath = path.resolve(__dirname, "..", "package.json");
@@ -34,9 +39,48 @@ app.use(errorHandler);
 
 if (require.main === module) {
   const port = Number(process.env.PORT ?? "3000");
-  app.listen(port, "0.0.0.0", () => {
-    console.log(`dani-api listening on 0.0.0.0:${port}`);
+  const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL;
+  if (webhookUrl) {
+    console.log(`Setting webhook to ${webhookUrl}/webhook/telegram`);
+    bot.telegram.setWebhook(`${webhookUrl}/webhook/telegram`);
+  }
+  const server = app.listen(port, () => {
+    console.log(`dani-api listening on port ${port}`);
   });
+
+  let isShuttingDown = false;
+  const shutdown = (signal: NodeJS.Signals) => {
+    if (isShuttingDown) {
+      return;
+    }
+    isShuttingDown = true;
+
+    const forceExitTimer = setTimeout(() => {
+      server.closeAllConnections?.();
+      process.exit(1);
+    }, 5000);
+    forceExitTimer.unref();
+
+    try {
+      bot.stop(signal);
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== "Bot is not running!") {
+        console.error("Error while stopping bot:", error);
+      }
+    }
+
+    server.close((error) => {
+      clearTimeout(forceExitTimer);
+      if (error) {
+        console.error("Error while shutting down server:", error);
+        process.exit(1);
+      }
+      process.exit(0);
+    });
+  };
+
+  process.once("SIGINT", () => shutdown("SIGINT"));
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
 }
 
 export { app, errorHandler, healthHandler, notFoundHandler, rootHandler };
